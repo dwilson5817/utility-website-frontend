@@ -1,0 +1,2 @@
+include:
+  - component: $CI_SERVER_FQDN/infrastructure/react-deployment-base/react-gitlab-pages-deploy@1.0.0
