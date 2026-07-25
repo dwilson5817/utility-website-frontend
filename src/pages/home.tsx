@@ -14,7 +14,7 @@ const tools = [
     title: "Europe Trip",
     subtitle: "Travel Itinerary",
     description: "Simple travel itinerary for interrailing Summer 2026",
-    link: "/europe",
+    link: "/interrail",
   },
 ]
 

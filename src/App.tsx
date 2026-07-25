@@ -1,6 +1,6 @@
 import { Route, Routes } from "react-router"
 import HomePage from "@/pages/home.tsx"
-import EuropeTripPage from "@/pages/europe-trip.tsx"
+import InterrailTripPage from "@/pages/interrail"
 import MainLayout from "@/layouts/main.tsx"
 
 export function App() {
@@ -8,7 +8,7 @@ export function App() {
     <Routes>
       <Route element={<MainLayout />}>
         <Route index element={<HomePage />} />
-        <Route path="europe" element={<EuropeTripPage />} />
+        <Route path="interrail" element={<InterrailTripPage />} />
       </Route>
     </Routes>
   )
