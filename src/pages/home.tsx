@@ -20,8 +20,8 @@ const tools = [
 
 const HomePage = () => {
   return (
-    <div className="mx-auto max-w-4xl">
-      <ItemGroup className="grid grid-cols-2 gap-4">
+    <div className="mx-auto max-w-4xl px-4 py-6">
+      <ItemGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {tools.map((tool) => (
           <Item key={tool.title} variant="outline" asChild role="listitem">
             <Link to={tool.link}>

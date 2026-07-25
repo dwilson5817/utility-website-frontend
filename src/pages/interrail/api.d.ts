@@ -4,334 +4,444 @@
  */
 
 export interface paths {
-  "/interrail/manifest": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Read Manifest
-     * @description Return the trip manifest: the ordered destinations and travel legs.
-     */
-    get: operations["read_manifest_interrail_manifest_get"]
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/interrail/stations": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Search Stations
-     * @description Resolve a free-text ``query`` to matching stations for autocomplete.
-     */
-    get: operations["search_stations_interrail_stations_get"]
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
-  "/interrail/departures": {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    /**
-     * Get Departures
-     * @description Return the next direct departures for one pre-planned hop, soonest first.
-     *
-     *     A board of direct trains/buses leaving ``from`` that call at ``to`` — not a
-     *     journey planner. By default it prefers trains (which an Interrail pass
-     *     covers) and only falls back to allowing buses when no direct train exists
-     *     (e.g. a last mile). Pass ``modes`` explicitly to override (e.g. ``BUS``).
-     *
-     *     :param from: Origin — a station id (from ``/stations``) or a free-text name.
-     *     :param to: Next stop the train must call at — a station id or a name.
-     *     :param when: Depart-after time (ISO-8601); defaults to now.
-     *     :param modes: Transit modes to allow, e.g. ``RAIL`` or ``BUS``. Omit for the
-     *         rail-preferred, bus-fallback default.
-     *     :param limit: Maximum number of departures to return.
-     */
-    get: operations["get_departures_interrail_departures_get"]
-    put?: never
-    post?: never
-    delete?: never
-    options?: never
-    head?: never
-    patch?: never
-    trace?: never
-  }
+    "/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read Manifest
+         * @description Return the trip manifest: the ordered destinations and travel legs.
+         */
+        get: operations["read_manifest_manifest_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/stations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Search Stations
+         * @description Resolve a free-text ``query`` to matching stations for autocomplete.
+         */
+        get: operations["search_stations_stations_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/departures": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Departures
+         * @description Return the next direct departures for one pre-planned hop, soonest first.
+         *
+         *     A board of direct trains/buses leaving ``from`` that call at ``to`` — not a
+         *     journey planner. By default it prefers trains (which an Interrail pass
+         *     covers) and only falls back to allowing buses when no direct train exists
+         *     (e.g. a last mile). Pass ``modes`` explicitly to override (e.g. ``BUS``).
+         *
+         *     :param from: Origin — a station id (from ``/stations``) or a free-text name.
+         *     :param to: Next stop the train must call at — a station id or a name.
+         *     :param when: Depart-after time (ISO-8601); defaults to now.
+         *     :param modes: Transit modes to allow, e.g. ``RAIL`` or ``BUS``. Omit for the
+         *         rail-preferred, bus-fallback default.
+         *     :param limit: Maximum number of departures to return.
+         */
+        get: operations["get_departures_departures_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/weather": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Weather
+         * @description Current conditions and a short forecast for each trip destination.
+         *
+         *     The destinations (and their coordinates) come from the manifest, so this
+         *     takes no parameters. All destinations are fetched in one batched, cached
+         *     upstream call; the result is keyed by destination name for the frontend to
+         *     join onto the manifest.
+         */
+        get: operations["get_weather_weather_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
-export type webhooks = Record<string, never>
+export type webhooks = Record<string, never>;
 export interface components {
-  schemas: {
-    /**
-     * Departure
-     * @description A single direct train/bus leaving one stop and calling at another.
-     *
-     *     This is one row of a departure board for a pre-planned hop: board it at
-     *     ``departure`` and it takes you directly to ``arrival``.
-     */
-    Departure: {
-      /** Mode */
-      mode?: string | null
-      /** Line */
-      line?: string | null
-      /** Operator */
-      operator?: string | null
-      /** Direction */
-      direction?: string | null
-      /**
-       * Realtime
-       * @default false
-       */
-      realtime: boolean
-      /**
-       * Cancelled
-       * @default false
-       */
-      cancelled: boolean
-      departure: components["schemas"]["StopPoint"]
-      arrival: components["schemas"]["StopPoint"]
-    }
-    /**
-     * DestinationItem
-     * @description A place stayed at on the trip (display only).
-     */
-    DestinationItem: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "destination"
-      /** Flag */
-      flag: string
-      /** Name */
-      name: string
-      /** Country */
-      country: string
-    }
-    /**
-     * FlightItem
-     * @description A flight between two places.
-     *
-     *     Flights are static: they aren't in the routing engine, aren't covered by the
-     *     Interrail pass, and have fixed times — so unlike ``route`` legs they can't be
-     *     computed. The ``end`` airport is where the following ``route`` leg begins.
-     */
-    FlightItem: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "flight"
-      /** Start */
-      start: string
-      /** End */
-      end: string
-      /** Number */
-      number: string
-      /** Operator */
-      operator: string
-      /**
-       * Departure At
-       * Format: date-time
-       */
-      departure_at: string
-    }
-    /** HTTPValidationError */
-    HTTPValidationError: {
-      /** Detail */
-      detail?: components["schemas"]["ValidationError"][]
-    }
-    /**
-     * LegItem
-     * @description A single direct travel hop, shown live as a departure board.
-     *
-     *     The route is planned in advance as a sequence of single-vehicle hops (a
-     *     change of train is two legs, not one). The frontend renders each leg by
-     *     calling ``/departures?from={from}&to={to}`` — the next direct trains/buses
-     *     from ``from`` that call at ``to`` (rail-preferred, bus fallback). The
-     *     manifest never pins a service; the board shows every direct option.
-     */
-    LegItem: {
-      /**
-       * @description discriminator enum property added by openapi-typescript
-       * @enum {string}
-       */
-      type: "leg"
-      /**
-       * Mode
-       * @default train
-       * @enum {string}
-       */
-      mode: "train" | "bus"
-      /** From */
-      from: string
-      /** To */
-      to: string
-    }
-    /**
-     * Station
-     * @description A resolvable station, for autocomplete.
-     */
-    Station: {
-      /** Id */
-      id: string
-      /** Name */
-      name: string
-    }
-    /**
-     * StopPoint
-     * @description One end of a departure: a stop with timetabled and real-time times.
-     *
-     *     Both times are passed straight through from upstream. When there is no live
-     *     data ``actual`` equals ``scheduled`` (see :attr:`Departure.realtime`); the
-     *     delay, if any, is ``actual - scheduled`` and is left for the caller to
-     *     compute.
-     */
-    StopPoint: {
-      /** Name */
-      name: string
-      /**
-       * Scheduled
-       * Format: date-time
-       */
-      scheduled: string
-      /**
-       * Actual
-       * Format: date-time
-       */
-      actual: string
-      /** Platform */
-      platform?: string | null
-    }
-    /** ValidationError */
-    ValidationError: {
-      /** Location */
-      loc: (string | number)[]
-      /** Message */
-      msg: string
-      /** Error Type */
-      type: string
-      /** Input */
-      input?: unknown
-      /** Context */
-      ctx?: Record<string, never>
-    }
-  }
-  responses: never
-  parameters: never
-  requestBodies: never
-  headers: never
-  pathItems: never
+    schemas: {
+        /**
+         * CurrentWeather
+         * @description Current conditions at a destination, passed through from Open-Meteo.
+         *
+         *     ``weather_code`` is the raw WMO code; the frontend maps it to an icon/label
+         *     (we don't translate it). Units are fixed by the request: °C, km/h.
+         */
+        CurrentWeather: {
+            /**
+             * Time
+             * Format: date-time
+             */
+            time: string;
+            /** Temperature */
+            temperature: number;
+            /** Weather Code */
+            weather_code: number;
+            /** Wind Speed */
+            wind_speed: number;
+            /** Is Day */
+            is_day: boolean;
+        };
+        /**
+         * DailyForecast
+         * @description One day of forecast at a destination. Units: °C, %.
+         */
+        DailyForecast: {
+            /**
+             * Date
+             * Format: date
+             */
+            date: string;
+            /** Weather Code */
+            weather_code: number;
+            /** Temperature Min */
+            temperature_min: number;
+            /** Temperature Max */
+            temperature_max: number;
+            /** Precipitation Probability */
+            precipitation_probability?: number | null;
+        };
+        /**
+         * Departure
+         * @description A single direct train/bus leaving one stop and calling at another.
+         *
+         *     This is one row of a departure board for a pre-planned hop: board it at
+         *     ``departure`` and it takes you directly to ``arrival``.
+         */
+        Departure: {
+            /** Mode */
+            mode?: string | null;
+            /** Line */
+            line?: string | null;
+            /** Operator */
+            operator?: string | null;
+            /** Direction */
+            direction?: string | null;
+            /**
+             * Realtime
+             * @default false
+             */
+            realtime: boolean;
+            /**
+             * Cancelled
+             * @default false
+             */
+            cancelled: boolean;
+            departure: components["schemas"]["StopPoint"];
+            arrival: components["schemas"]["StopPoint"];
+        };
+        /**
+         * DestinationItem
+         * @description A place stayed at on the trip.
+         *
+         *     Mostly display, but carries fixed coordinates so ``/weather`` can fetch the
+         *     forecast for each destination without a geocoding round-trip, and the IANA
+         *     ``timezone`` so the frontend can show each destination's local time.
+         */
+        DestinationItem: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "destination";
+            /** Flag */
+            flag: string;
+            /** Name */
+            name: string;
+            /** Country */
+            country: string;
+            /** Latitude */
+            latitude: number;
+            /** Longitude */
+            longitude: number;
+            /** Timezone */
+            timezone: string;
+            /** Depart */
+            depart?: string | null;
+        };
+        /**
+         * DestinationWeather
+         * @description Weather for one trip destination: current conditions + short forecast.
+         *
+         *     ``destination`` matches the ``name`` of the manifest ``DestinationItem`` so
+         *     the frontend can join it onto the destinations it already has.
+         */
+        DestinationWeather: {
+            /** Destination */
+            destination: string;
+            /** Latitude */
+            latitude: number;
+            /** Longitude */
+            longitude: number;
+            /** Timezone */
+            timezone: string;
+            current: components["schemas"]["CurrentWeather"];
+            /** Daily */
+            daily: components["schemas"]["DailyForecast"][];
+        };
+        /**
+         * FlightItem
+         * @description A flight between two places.
+         *
+         *     Flights are static markers: they aren't in the routing engine and aren't
+         *     covered by the Interrail pass, so — unlike ``leg`` hops — they can't be shown
+         *     as a live departure board. The ``end`` airport is where the following ``leg``
+         *     begins.
+         */
+        FlightItem: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "flight";
+            /** Start */
+            start: string;
+            /** End */
+            end: string;
+            /** Number */
+            number: string;
+            /** Operator */
+            operator: string;
+        };
+        /** HTTPValidationError */
+        HTTPValidationError: {
+            /** Detail */
+            detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * LegItem
+         * @description A single direct travel hop, shown live as a departure board.
+         *
+         *     The route is planned in advance as a sequence of single-vehicle hops (a
+         *     change of train is two legs, not one). The frontend renders each leg by
+         *     calling ``/departures?from={from}&to={to}`` — the next direct trains/buses
+         *     from ``from`` that call at ``to`` (rail-preferred, bus fallback). The
+         *     manifest never pins a service; the board shows every direct option.
+         */
+        LegItem: {
+            /**
+             * @description discriminator enum property added by openapi-typescript
+             * @enum {string}
+             */
+            type: "leg";
+            /**
+             * Mode
+             * @default train
+             * @enum {string}
+             */
+            mode: "train" | "bus";
+            /** From */
+            from: string;
+            /** To */
+            to: string;
+        };
+        /**
+         * Station
+         * @description A resolvable station, for autocomplete.
+         */
+        Station: {
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+        };
+        /**
+         * StopPoint
+         * @description One end of a departure: a stop with timetabled and real-time times.
+         *
+         *     Both times are passed straight through from upstream. When there is no live
+         *     data ``actual`` equals ``scheduled`` (see :attr:`Departure.realtime`); the
+         *     delay, if any, is ``actual - scheduled`` and is left for the caller to
+         *     compute.
+         */
+        StopPoint: {
+            /** Name */
+            name: string;
+            /**
+             * Scheduled
+             * Format: date-time
+             */
+            scheduled: string;
+            /**
+             * Actual
+             * Format: date-time
+             */
+            actual: string;
+            /** Platform */
+            platform?: string | null;
+        };
+        /** ValidationError */
+        ValidationError: {
+            /** Location */
+            loc: (string | number)[];
+            /** Message */
+            msg: string;
+            /** Error Type */
+            type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
+        };
+    };
+    responses: never;
+    parameters: never;
+    requestBodies: never;
+    headers: never;
+    pathItems: never;
 }
-export type $defs = Record<string, never>
+export type $defs = Record<string, never>;
 export interface operations {
-  read_manifest_interrail_manifest_get: {
-    parameters: {
-      query?: never
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": (
-            | components["schemas"]["DestinationItem"]
-            | components["schemas"]["FlightItem"]
-            | components["schemas"]["LegItem"]
-          )[]
-        }
-      }
-    }
-  }
-  search_stations_interrail_stations_get: {
-    parameters: {
-      query: {
-        query: string
-        limit?: number
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": components["schemas"]["Station"][]
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"]
-        }
-      }
-    }
-  }
-  get_departures_interrail_departures_get: {
-    parameters: {
-      query: {
-        from: string
-        to: string
-        when?: string | null
-        modes?: string | null
-        limit?: number
-      }
-      header?: never
-      path?: never
-      cookie?: never
-    }
-    requestBody?: never
-    responses: {
-      /** @description Successful Response */
-      200: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": components["schemas"]["Departure"][]
-        }
-      }
-      /** @description Validation Error */
-      422: {
-        headers: {
-          [name: string]: unknown
-        }
-        content: {
-          "application/json": components["schemas"]["HTTPValidationError"]
-        }
-      }
-    }
-  }
+    read_manifest_manifest_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": (components["schemas"]["DestinationItem"] | components["schemas"]["FlightItem"] | components["schemas"]["LegItem"])[];
+                };
+            };
+        };
+    };
+    search_stations_stations_get: {
+        parameters: {
+            query: {
+                query: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Station"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_departures_departures_get: {
+        parameters: {
+            query: {
+                from: string;
+                to: string;
+                when?: string | null;
+                modes?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Departure"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_weather_weather_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DestinationWeather"][];
+                };
+            };
+        };
+    };
 }

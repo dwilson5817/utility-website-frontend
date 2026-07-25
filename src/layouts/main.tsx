@@ -2,7 +2,7 @@ import { Outlet } from "react-router"
 
 const MainLayout = () => {
   return (
-    <div className="py-6">
+    <div className="min-h-svh">
       <Outlet />
     </div>
   )
