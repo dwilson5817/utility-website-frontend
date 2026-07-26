@@ -16,11 +16,7 @@ import {
   useState,
   type PropsWithChildren,
 } from "react"
-import {
-  differenceInCalendarDays,
-  differenceInMinutes,
-  formatDistance,
-} from "date-fns"
+import { differenceInCalendarDays, differenceInMinutes } from "date-fns"
 import { Link } from "react-router"
 import { Button } from "@/components/ui/button.tsx"
 import createFetchClient from "openapi-fetch"
@@ -371,6 +367,20 @@ type ManifestLeg = Extract<ManifestItem, { type: "leg" }>
 type Departure =
   paths["/departures"]["get"]["responses"]["200"]["content"]["application/json"][number]
 
+// Exact journey time rather than date-fns' rounding, which flattens everything
+// from 45 minutes to 89 into "about 1 hour".
+const formatJourneyTime = (departure: string, arrival: string) => {
+  const totalMinutes = differenceInMinutes(arrival, departure)
+  if (totalMinutes <= 0) return null
+
+  const hours = Math.floor(totalMinutes / 60)
+  const minutes = totalMinutes % 60
+
+  if (!hours) return `${minutes} min`
+  if (!minutes) return `${hours} h`
+  return `${hours} h ${minutes} min`
+}
+
 const formatTrainTime = (isoTime: string) => {
   const timestamp = new Date(isoTime)
   return timestamp.toLocaleString([], {
@@ -630,7 +640,10 @@ const DepartureDetails = ({ departure }: { departure: Departure }) => {
         Pl. {departure.departure.platform}
       </span>
     ),
-    formatDistance(departure.departure.scheduled, departure.arrival.scheduled),
+    formatJourneyTime(
+      departure.departure.scheduled,
+      departure.arrival.scheduled
+    ),
     <DelayNote
       scheduled={departure.departure.scheduled}
       expected={departure.departure.actual}
