@@ -15,6 +15,7 @@ import {
   useMemo,
   useState,
   type PropsWithChildren,
+  type ReactNode,
 } from "react"
 import { differenceInCalendarDays, differenceInMinutes } from "date-fns"
 import { Link } from "react-router"
@@ -381,13 +382,24 @@ const formatJourneyTime = (departure: string, arrival: string) => {
   return `${hours} h ${minutes} min`
 }
 
-const formatTrainTime = (isoTime: string) => {
-  const timestamp = new Date(isoTime)
-  return timestamp.toLocaleString([], {
+// en-GB rather than the device locale, so times read as 24-hour everywhere —
+// the way every departure board on the trip shows them.
+const timeFormat = new Intl.DateTimeFormat("en-GB", {
+  hour: "2-digit",
+  minute: "2-digit",
+})
+
+const formatTrainTime = (isoTime: string) =>
+  timeFormat.format(new Date(isoTime))
+
+// Flights cross time zones, so they are shown at the airport the departure
+// actually happens at rather than wherever the phone currently is.
+const formatZonedTime = (isoTime: string, timeZone: string) =>
+  new Date(isoTime).toLocaleString("en-GB", {
+    timeZone,
     hour: "2-digit",
     minute: "2-digit",
   })
-}
 
 const useDepartures = (leg: ManifestLeg) =>
   $api.useQuery("get", "/departures", {
@@ -629,39 +641,42 @@ const Destination = ({ destination, isCurrent }: DestinationProps) => {
   )
 }
 
-// Line, platform, journey time and status, joined so a missing part never
-// leaves a dangling separator behind. Shared by the rail and the board so a
-// departure reads the same wherever it appears.
-const DepartureDetails = ({ departure }: { departure: Departure }) => {
-  const segments = [
-    departure.line,
-    departure.departure.platform && (
-      <span className="rounded-sm border px-1 font-medium text-foreground">
-        Pl. {departure.departure.platform}
-      </span>
-    ),
-    formatJourneyTime(
-      departure.departure.scheduled,
-      departure.arrival.scheduled
-    ),
-    <DelayNote
-      scheduled={departure.departure.scheduled}
-      expected={departure.departure.actual}
-      cancelled={departure.cancelled}
-    />,
-  ].filter(Boolean)
+// The secondary line under a journey: whatever is known about it, joined with
+// dots. Missing parts drop out rather than leaving a dangling separator.
+const DetailLine = ({ segments }: { segments: ReactNode[] }) => (
+  <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+    {segments.filter(Boolean).map((segment, index) => (
+      <Fragment key={index}>
+        {index > 0 && <span aria-hidden>&middot;</span>}
+        {segment}
+      </Fragment>
+    ))}
+  </span>
+)
 
-  return (
-    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
-      {segments.map((segment, index) => (
-        <Fragment key={index}>
-          {index > 0 && <span aria-hidden>&middot;</span>}
-          {segment}
-        </Fragment>
-      ))}
-    </span>
-  )
-}
+// Shared by the rail and the board, so a departure reads the same wherever it
+// appears.
+const DepartureDetails = ({ departure }: { departure: Departure }) => (
+  <DetailLine
+    segments={[
+      departure.line,
+      departure.departure.platform && (
+        <span className="rounded-sm border px-1 font-medium text-foreground">
+          Pl. {departure.departure.platform}
+        </span>
+      ),
+      formatJourneyTime(
+        departure.departure.scheduled,
+        departure.arrival.scheduled
+      ),
+      <DelayNote
+        scheduled={departure.departure.scheduled}
+        expected={departure.departure.actual}
+        cancelled={departure.cancelled}
+      />,
+    ]}
+  />
+)
 
 interface DepartureSummaryProps {
   departure: Departure | undefined
@@ -788,19 +803,27 @@ const RailHeadline = ({ children }: PropsWithChildren) => (
   </span>
 )
 
-// Flights are static: no board to open, so the row is not interactive.
+// Flights are static: their times are fixed and there is no board to open, so
+// the row is not interactive.
 const FlightRow = ({ flight }: { flight: ManifestFlight }) => (
   <div className={railRow}>
     <RailNode mode="plane" />
     <span className="flex min-w-0 flex-col gap-1">
       <RailHeadline>
+        <strong>
+          {formatZonedTime(flight.departure_at, flight.departure_timezone)}
+        </strong>
         <span className="truncate">{flight.end}</span>
         <NotOnPassBadge />
       </RailHeadline>
-      <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
-        {flight.number}
-        <span aria-hidden>&middot;</span>
-        {flight.operator}
+      <span className="text-sm text-muted-foreground">
+        <DetailLine
+          segments={[
+            flight.number,
+            formatJourneyTime(flight.departure_at, flight.arrival_at),
+            flight.operator,
+          ]}
+        />
       </span>
     </span>
   </div>
