@@ -1,18 +1,11 @@
 import {
-  Item,
-  ItemContent,
-  ItemMedia,
-  ItemTitle,
-} from "@/components/ui/item.tsx"
-import {
   AlertCircleIcon,
   BusIcon,
+  ChevronRightIcon,
   HomeIcon,
-  MoveRightIcon,
   PlaneIcon,
   RadioIcon,
   TrainIcon,
-  TriangleAlertIcon,
 } from "lucide-react"
 import { Marker, MarkerContent } from "@/components/ui/marker.tsx"
 import { Badge } from "@/components/ui/badge.tsx"
@@ -41,15 +34,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog.tsx"
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table.tsx"
-import { Skeleton } from "@/components/ui/skeleton.tsx"
 import { Spinner } from "@/components/ui/spinner.tsx"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert.tsx"
 import {
@@ -60,7 +44,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card.tsx"
-import { Separator } from "@/components/ui/separator.tsx"
+import { cn } from "@/lib/utils.ts"
 
 const fetchClient = createFetchClient<paths>({
   baseUrl: import.meta.env.VITE_API_INTERRAIL_BASE_URL,
@@ -367,14 +351,6 @@ const forecastDayFormat = new Intl.DateTimeFormat("en-GB", {
   weekday: "short",
 })
 
-function departureLabel(departure: string) {
-  const days = differenceInCalendarDays(departure, new Date())
-  if (days === 0) return "Today"
-  if (days === 1) return "Tomorrow"
-  if (days === -1) return "Yesterday"
-  return days > 1 ? `In ${days} days` : `${-days} days ago`
-}
-
 // Destination cards show the local time, so they need re-rendering as it ticks.
 const useNow = (intervalMs = 60_000) => {
   const [now, setNow] = useState(() => new Date())
@@ -413,28 +389,10 @@ const useDepartures = (leg: ManifestLeg) =>
     },
   })
 
-interface LiveStatusProps {
+interface DelayNoteProps {
   scheduled: string
   expected: string | null | undefined
   cancelled: boolean | null | undefined
-}
-
-const LiveStatus = ({ scheduled, expected, cancelled }: LiveStatusProps) => {
-  const delayMinutes = differenceInMinutes(expected || scheduled, scheduled)
-
-  if (cancelled) {
-    return <Badge variant="destructive">Cancelled</Badge>
-  }
-
-  if (delayMinutes) {
-    return <Badge>Delayed</Badge>
-  }
-
-  return (
-    <Badge className="bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300">
-      Good Service
-    </Badge>
-  )
 }
 
 interface LiveTimeProps {
@@ -448,7 +406,9 @@ const LiveTime = ({ scheduled, expected }: LiveTimeProps) => {
   if (delayMinutes && expected) {
     return (
       <span className="inline-flex items-center gap-x-1">
-        <s className="text-muted-foreground">{formatTrainTime(scheduled)}</s>
+        <s className="font-normal text-muted-foreground">
+          {formatTrainTime(scheduled)}
+        </s>
         <strong>{formatTrainTime(expected)}</strong>
       </span>
     )
@@ -457,30 +417,54 @@ const LiveTime = ({ scheduled, expected }: LiveTimeProps) => {
   return <strong>{formatTrainTime(scheduled)}</strong>
 }
 
-const RouteBadge = ({ children }: PropsWithChildren) => {
-  return (
-    <Badge className="bg-sky-50 text-sky-700 dark:bg-sky-950 dark:text-sky-300">
-      {children}
-    </Badge>
-  )
+// How late a departure is running, as plain text — red is kept for the times it
+// should make you look up, rather than spent on every healthy service.
+const DelayNote = ({ scheduled, expected, cancelled }: DelayNoteProps) => {
+  const delayMinutes = differenceInMinutes(expected || scheduled, scheduled)
+
+  if (cancelled)
+    return <span className="font-medium text-destructive">Cancelled</span>
+
+  if (delayMinutes > 0)
+    return (
+      <span className="font-medium text-destructive">
+        {delayMinutes} min late
+      </span>
+    )
+
+  return <span>On time</span>
 }
 
 const TravelIcon = ({ mode }: { mode: "train" | "bus" | "plane" }) => {
   switch (mode) {
     case "bus":
-      return <BusIcon />
+      return <BusIcon className="size-4" />
     case "plane":
-      return <PlaneIcon />
+      return <PlaneIcon className="size-4" />
     case "train":
-      return <TrainIcon />
+      return <TrainIcon className="size-4" />
   }
 }
 
-const NotOnInterrailBadge = () => (
-  <Badge variant="destructive">
-    <TriangleAlertIcon data-icon="inline-start" />
-    Not available on Interrail
-  </Badge>
+const NotOnPassBadge = () => <Badge variant="outline">Not on pass</Badge>
+
+// A span rather than <Skeleton>, which is a div and so cannot sit inside the
+// button that wraps a leg row.
+const LoadingBar = ({ className }: { className?: string }) => (
+  <span
+    className={cn("inline-block animate-pulse rounded-md bg-muted", className)}
+  />
+)
+
+const LoadFailedAlert = ({
+  title,
+  children,
+}: PropsWithChildren<{ title: string }>) => (
+  <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50">
+    <AlertCircleIcon />
+    <AlertTitle>{title}</AlertTitle>
+    <AlertDescription>{children}</AlertDescription>
+  </Alert>
 )
 
 const LiveBadge = () => (
@@ -490,57 +474,35 @@ const LiveBadge = () => (
   </Badge>
 )
 
-const Route = ({ from, to }: { from: string; to: string }) => (
-  <span className="inline-flex items-center gap-2 whitespace-nowrap">
-    {from} <MoveRightIcon className="size-4" /> {to}
-  </span>
-)
-
-const Flight = ({ flight }: { flight: ManifestFlight }) => {
-  return (
-    <Item variant="outline" className="items-start">
-      <ItemMedia variant="icon" className="mt-0.5 self-start">
-        <TravelIcon mode="plane" />
-      </ItemMedia>
-      <ItemContent>
-        <ItemTitle className="line-clamp-none w-full flex-wrap">
-          <Route from={flight.start} to={flight.end} />
-          <NotOnInterrailBadge />
-        </ItemTitle>
-        <p className="text-sm text-muted-foreground">
-          Take the <RouteBadge>{flight.number}</RouteBadge> to{" "}
-          <strong>{flight.end}</strong>.
-        </p>
-      </ItemContent>
-    </Item>
-  )
-}
-
-interface WeatherInfoProps {
+interface CurrentWeatherProps {
   temperature: number
-  temperatureMin?: number
   weatherCode: number
   isDay: boolean
 }
 
-const WeatherInfo = ({
+const weatherIcon = (weatherCode: number, isDay: boolean) =>
+  weatherIcons[weatherCode]?.[isDay ? "day" : "night"]
+
+// Conditions right now, sat beside the place name: the temperature is the
+// biggest thing on the card after the place itself.
+const CurrentWeather = ({
   temperature,
-  temperatureMin,
   weatherCode,
   isDay,
-}: WeatherInfoProps) => {
-  const icon = weatherIcons[weatherCode]?.[isDay ? "day" : "night"]
+}: CurrentWeatherProps) => {
+  const icon = weatherIcon(weatherCode, isDay)
 
   return (
-    <div className="text-center">
-      <span className="font-bold whitespace-nowrap">
-        {Math.round(temperature)}°C
-        {temperatureMin !== undefined && ` / ${Math.round(temperatureMin)}°C`}
+    <div className="flex items-center gap-1">
+      <span className="text-2xl leading-none font-semibold tabular-nums">
+        {Math.round(temperature)}°
       </span>
       {icon && (
-        <div className="flex">
-          <img className="size-8" src={icon.image} alt={icon.description} />
-        </div>
+        <img
+          className="size-9 shrink-0"
+          src={icon.image}
+          alt={icon.description}
+        />
       )}
     </div>
   )
@@ -552,7 +514,47 @@ const forecastDayLabel = (date: string, index: number) => {
   return forecastDayFormat.format(new Date(date))
 }
 
-const Destination = ({ destination }: { destination: ManifestDestination }) => {
+const ForecastChip = ({
+  label,
+  temperature,
+  temperatureMin,
+  weatherCode,
+}: {
+  label: string
+  temperature: number
+  temperatureMin: number
+  weatherCode: number
+}) => {
+  const icon = weatherIcon(weatherCode, true)
+
+  return (
+    <div className="flex flex-1 flex-col items-center gap-0.5 rounded-md bg-muted px-1.5 py-1.5">
+      <span className="text-xs font-medium">{label}</span>
+      <span className="flex items-center gap-1 tabular-nums">
+        {icon && (
+          <img
+            className="size-6 shrink-0"
+            src={icon.image}
+            alt={icon.description}
+          />
+        )}
+        <span className="text-sm font-semibold">
+          {Math.round(temperature)}°
+        </span>
+        <span className="text-xs text-muted-foreground">
+          / {Math.round(temperatureMin)}°
+        </span>
+      </span>
+    </div>
+  )
+}
+
+interface DestinationProps {
+  destination: ManifestDestination
+  isCurrent: boolean
+}
+
+const Destination = ({ destination, isCurrent }: DestinationProps) => {
   const { data } = $api.useQuery("get", "/weather")
   const now = useNow()
 
@@ -560,76 +562,56 @@ const Destination = ({ destination }: { destination: ManifestDestination }) => {
     (location) => destination.name == location.destination
   )
 
-  const { localTimeFormat, localDateFormat } = useMemo(
-    () => ({
-      localTimeFormat: new Intl.DateTimeFormat("en-GB", {
+  const localTimeFormat = useMemo(
+    () =>
+      new Intl.DateTimeFormat("en-GB", {
         timeZone: destination.timezone,
         hour: "2-digit",
         minute: "2-digit",
       }),
-      localDateFormat: new Intl.DateTimeFormat("en-GB", {
-        timeZone: destination.timezone,
-        month: "short",
-        day: "numeric",
-        weekday: "short",
-      }),
-    }),
     [destination.timezone]
   )
 
   return (
     <>
-      <Card size="sm">
+      <Card className={cn(isCurrent && "ring-primary")}>
         <CardHeader>
-          <CardTitle>
+          <CardTitle className="flex flex-wrap items-center gap-2">
             {destination.flag} {destination.name}
           </CardTitle>
-          <CardDescription>{destination.country}</CardDescription>
-          <CardAction>
-            <div className="text-right text-sm font-bold">
-              {localTimeFormat.format(now)}
-            </div>
-            <div className="text-right text-xs font-bold">
-              {localDateFormat.format(now)}
-            </div>
-          </CardAction>
+          <CardDescription className="tabular-nums">
+            {destination.country} &middot; {localTimeFormat.format(now)}
+          </CardDescription>
+          {weatherReport && (
+            <CardAction>
+              <CurrentWeather
+                temperature={weatherReport.current.temperature}
+                weatherCode={weatherReport.current.weather_code}
+                isDay={weatherReport.current.is_day}
+              />
+            </CardAction>
+          )}
         </CardHeader>
         {weatherReport && (
           <CardContent>
-            <div className="flex items-center justify-around gap-1 text-xs sm:gap-2 sm:text-sm md:gap-4">
-              <div className="flex flex-col items-center gap-1">
-                <span className="font-medium">Now</span>
-                <WeatherInfo
-                  temperature={weatherReport.current.temperature}
-                  weatherCode={weatherReport.current.weather_code}
-                  isDay={weatherReport.current.is_day}
-                />
-              </div>
+            <div className="flex gap-1.5">
               {weatherReport.daily.map((daily, index) => (
-                <Fragment key={daily.date}>
-                  <Separator orientation="vertical" />
-                  <div className="flex flex-col items-center gap-1">
-                    <span className="font-medium">
-                      {forecastDayLabel(daily.date, index)}
-                    </span>
-                    <WeatherInfo
-                      temperature={daily.temperature_max}
-                      temperatureMin={daily.temperature_min}
-                      weatherCode={daily.weather_code}
-                      isDay
-                    />
-                  </div>
-                </Fragment>
+                <ForecastChip
+                  key={daily.date}
+                  label={forecastDayLabel(daily.date, index)}
+                  temperature={daily.temperature_max}
+                  temperatureMin={daily.temperature_min}
+                  weatherCode={daily.weather_code}
+                />
               ))}
             </div>
           </CardContent>
         )}
       </Card>
       {destination.depart && (
-        <Marker variant="separator" className="my-2">
+        <Marker variant="border" className="mt-4">
           <MarkerContent>
-            {departDateFormat.format(new Date(destination.depart))}{" "}
-            <Badge>{departureLabel(destination.depart)}</Badge>
+            {departDateFormat.format(new Date(destination.depart))}
           </MarkerContent>
         </Marker>
       )}
@@ -637,50 +619,99 @@ const Destination = ({ destination }: { destination: ManifestDestination }) => {
   )
 }
 
+// Line, platform, journey time and status, joined so a missing part never
+// leaves a dangling separator behind. Shared by the rail and the board so a
+// departure reads the same wherever it appears.
+const DepartureDetails = ({ departure }: { departure: Departure }) => {
+  const segments = [
+    departure.line,
+    departure.departure.platform && (
+      <span className="rounded-sm border px-1 font-medium text-foreground">
+        Pl. {departure.departure.platform}
+      </span>
+    ),
+    formatDistance(departure.departure.scheduled, departure.arrival.scheduled),
+    <DelayNote
+      scheduled={departure.departure.scheduled}
+      expected={departure.departure.actual}
+      cancelled={departure.cancelled}
+    />,
+  ].filter(Boolean)
+
+  return (
+    <span className="flex flex-wrap items-center gap-x-1.5 gap-y-1">
+      {segments.map((segment, index) => (
+        <Fragment key={index}>
+          {index > 0 && <span aria-hidden>&middot;</span>}
+          {segment}
+        </Fragment>
+      ))}
+    </span>
+  )
+}
+
 interface DepartureSummaryProps {
-  leg: ManifestLeg
   departure: Departure | undefined
   isLoading: boolean
   isError: boolean
 }
 
+// Line, platform, journey time and status, joined so a missing part never
+// leaves a dangling separator behind.
 const DepartureSummary = ({
-  leg,
   departure,
   isLoading,
   isError,
 }: DepartureSummaryProps) => {
-  if (isLoading) return <Skeleton className="h-5 w-full max-w-lg" />
+  if (isLoading) return <LoadingBar className="h-4 w-48" />
   if (isError) return <span>Departure information unavailable.</span>
-  if (!departure) return <span>No information available.</span>
+  if (!departure) return <span>No departures found.</span>
 
-  return (
-    <span>
-      <LiveBadge /> Take the <RouteBadge>{departure.line}</RouteBadge>
-      {leg.to == departure.direction ? " to " : " towards "}
-      <strong>{departure.direction}</strong> at{" "}
-      <LiveTime
-        scheduled={departure.departure.scheduled}
-        expected={departure.departure.actual}
-      />{" "}
-      {departure.departure.platform && (
-        <span>
-          from platform <strong>{departure.departure.platform}</strong>
-        </span>
-      )}{" "}
-      for{" "}
-      <strong>
-        {formatDistance(
-          departure.departure.scheduled,
-          departure.arrival.scheduled
-        )}
-      </strong>
-      .
-    </span>
-  )
+  return <DepartureDetails departure={departure} />
 }
 
-const DepartureBoard = ({ departures }: { departures: Departure[] }) => {
+// Placeholder rows in the shape of the real ones, so the board does not jump
+// when the departures land.
+const DepartureBoardSkeleton = () => (
+  <>
+    <span className="sr-only" role="status">
+      Loading departures
+    </span>
+    <ul aria-hidden className="flex flex-col divide-y">
+      {Array.from({ length: 5 }, (_, index) => (
+        <li key={index} className="grid grid-cols-[auto_1fr] gap-x-3 py-3">
+          <LoadingBar className="h-5 w-11" />
+          <span className="flex flex-col gap-1.5">
+            <LoadingBar className="h-4 w-32" />
+            <LoadingBar className="h-3.5 w-48" />
+          </span>
+        </li>
+      ))}
+    </ul>
+  </>
+)
+
+interface DepartureBoardProps {
+  departures: Departure[]
+  isLoading: boolean
+  isError: boolean
+}
+
+const DepartureBoard = ({
+  departures,
+  isLoading,
+  isError,
+}: DepartureBoardProps) => {
+  if (isLoading) return <DepartureBoardSkeleton />
+
+  if (isError) {
+    return (
+      <LoadFailedAlert title="Failed to load departures">
+        This may be a temporary error, please try again in a few moments.
+      </LoadFailedAlert>
+    )
+  }
+
   if (departures.length === 0) {
     return (
       <p className="py-4 text-sm text-muted-foreground">
@@ -689,141 +720,197 @@ const DepartureBoard = ({ departures }: { departures: Departure[] }) => {
     )
   }
 
+  // One list at every width: the same row the rail uses, so a departure looks
+  // the same whether it is on the plan or on the board.
   return (
-    <>
-      <ul className="flex flex-col divide-y sm:hidden">
-        {departures.map((departure, index) => (
-          <li
-            key={index}
-            className="flex items-start justify-between gap-3 py-3"
+    <ul className="flex flex-col divide-y">
+      {departures.map((departure, index) => (
+        <li key={index} className="grid grid-cols-[auto_1fr] gap-x-3 py-3">
+          <span
+            className={cn(
+              "font-semibold whitespace-nowrap tabular-nums",
+              departure.cancelled && "text-muted-foreground line-through"
+            )}
           >
-            <div className="flex min-w-0 flex-col gap-1">
-              <span className="truncate font-medium">
-                {departure.direction ?? "—"}
-              </span>
-              <span className="flex flex-wrap items-center gap-1.5 text-muted-foreground">
-                <RouteBadge>{departure.line}</RouteBadge>
-                {departure.departure.platform
-                  ? `Platform ${departure.departure.platform}`
-                  : "No platform"}
-              </span>
-            </div>
-            <div className="flex flex-none flex-col items-end gap-1">
-              <LiveTime
-                scheduled={departure.departure.scheduled}
-                expected={departure.departure.actual}
-              />
-              <LiveStatus
-                scheduled={departure.departure.scheduled}
-                expected={departure.departure.actual}
-                cancelled={departure.cancelled}
-              />
-            </div>
-          </li>
-        ))}
-      </ul>
-      <div className="hidden sm:block">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Route</TableHead>
-              <TableHead>Destination</TableHead>
-              <TableHead>Departs</TableHead>
-              <TableHead>Platform</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {departures.map((departure, index) => (
-              <TableRow key={index}>
-                <TableCell>
-                  <RouteBadge>{departure.line}</RouteBadge>
-                </TableCell>
-                <TableCell className="font-medium">
-                  {departure.direction ?? "—"}
-                </TableCell>
-                <TableCell>
-                  <LiveTime
-                    scheduled={departure.departure.scheduled}
-                    expected={departure.departure.actual}
-                  />
-                </TableCell>
-                <TableCell className="text-muted-foreground">
-                  {departure.departure.platform ?? "—"}
-                </TableCell>
-                <TableCell>
-                  <LiveStatus
-                    scheduled={departure.departure.scheduled}
-                    expected={departure.departure.actual}
-                    cancelled={departure.cancelled}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-    </>
+            <LiveTime
+              scheduled={departure.departure.scheduled}
+              expected={departure.departure.actual}
+            />
+          </span>
+          <span className="flex min-w-0 flex-col gap-1">
+            <span className="truncate font-medium">
+              {departure.direction ?? "—"}
+            </span>
+            <span className="text-sm text-muted-foreground">
+              <DepartureDetails departure={departure} />
+            </span>
+          </span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
-const Leg = ({ leg }: { leg: ManifestLeg }) => {
+// The rail: one hairline running the full height of a row, with the mode icon
+// punched over it. Because the line overhangs by exactly the row padding,
+// consecutive rows join into a single unbroken line.
+const RailNode = ({ mode }: { mode: "train" | "bus" | "plane" }) => (
+  <span className="relative flex items-start justify-center self-stretch">
+    <span
+      aria-hidden
+      className="absolute -inset-y-2.5 left-1/2 w-px -translate-x-1/2 bg-border"
+    />
+    <span className="relative grid size-7 place-items-center rounded-full bg-secondary text-secondary-foreground">
+      <TravelIcon mode={mode} />
+    </span>
+  </span>
+)
+
+const railRow =
+  "grid w-full grid-cols-[2rem_1fr_auto] items-start gap-x-3 py-2.5"
+
+const RailHeadline = ({ children }: PropsWithChildren) => (
+  <span className="flex flex-wrap items-baseline gap-x-2 gap-y-1 font-semibold tabular-nums">
+    {children}
+  </span>
+)
+
+// Flights are static: no board to open, so the row is not interactive.
+const FlightRow = ({ flight }: { flight: ManifestFlight }) => (
+  <div className={railRow}>
+    <RailNode mode="plane" />
+    <span className="flex min-w-0 flex-col gap-1">
+      <RailHeadline>
+        <span className="truncate">{flight.end}</span>
+        <NotOnPassBadge />
+      </RailHeadline>
+      <span className="flex flex-wrap items-center gap-x-1.5 text-sm text-muted-foreground">
+        {flight.number}
+        <span aria-hidden>&middot;</span>
+        {flight.operator}
+      </span>
+    </span>
+  </div>
+)
+
+const LegRow = ({ leg }: { leg: ManifestLeg }) => {
   const { data, isError, isLoading, dataUpdatedAt } = useDepartures(leg)
 
   const nextDeparture = data?.find((departure) => !departure.cancelled)
 
   return (
-    <Item variant="outline" className="items-start">
-      <ItemMedia variant="icon" className="mt-0.5 self-start">
-        <TravelIcon mode={leg.mode} />
-      </ItemMedia>
-      <ItemContent>
-        <ItemTitle className="line-clamp-none w-full flex-wrap">
-          <Route from={leg.from} to={leg.to} />
-          {leg.mode !== "train" && <NotOnInterrailBadge />}
-        </ItemTitle>
-        <div className="mb-2 text-sm text-muted-foreground">
-          <DepartureSummary
-            leg={leg}
-            departure={nextDeparture}
-            isLoading={isLoading}
-            isError={isError}
-          />
-        </div>
-        <Dialog>
-          <DialogTrigger asChild>
-            <Button variant="outline" className="w-full sm:w-auto">
-              <TrainIcon />
-              View board
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-2xl">
-            <DialogHeader>
-              <DialogTitle>Departures from {leg.from}</DialogTitle>
-              <DialogDescription>
+    <Dialog>
+      <DialogTrigger asChild>
+        <button
+          type="button"
+          className={cn(
+            railRow,
+            "rounded-lg text-left transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          )}
+        >
+          <RailNode mode={leg.mode} />
+          <span className="flex min-w-0 flex-col gap-1">
+            <RailHeadline>
+              {isLoading ? (
+                <LoadingBar className="h-5 w-11" />
+              ) : (
+                nextDeparture && (
+                  <LiveTime
+                    scheduled={nextDeparture.departure.scheduled}
+                    expected={nextDeparture.departure.actual}
+                  />
+                )
+              )}
+              <span className="truncate">{leg.to}</span>
+              {leg.mode !== "train" && <NotOnPassBadge />}
+            </RailHeadline>
+            <span className="text-sm text-muted-foreground">
+              <DepartureSummary
+                departure={nextDeparture}
+                isLoading={isLoading}
+                isError={isError}
+              />
+            </span>
+          </span>
+          <ChevronRightIcon className="size-4 self-center text-muted-foreground" />
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Departures from {leg.from}</DialogTitle>
+          <DialogDescription>
+            {isLoading ? (
+              "Fetching the latest departures."
+            ) : isError ? (
+              "The departure board could not be reached."
+            ) : (
+              <>
                 <LiveBadge /> Departure information as of{" "}
-                {new Date(dataUpdatedAt).toLocaleTimeString()}.
-              </DialogDescription>
-            </DialogHeader>
-            <DepartureBoard departures={data?.slice(0, 10) ?? []} />
-          </DialogContent>
-        </Dialog>
-      </ItemContent>
-    </Item>
+                {formatTrainTime(new Date(dataUpdatedAt).toISOString())}.
+              </>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+        <DepartureBoard
+          departures={data?.slice(0, 10) ?? []}
+          isLoading={isLoading}
+          isError={isError}
+        />
+      </DialogContent>
+    </Dialog>
   )
 }
 
-const PlanItem = ({ item }: { item: ManifestItem }) => {
-  switch (item.type) {
-    case "flight":
-      return <Flight flight={item} />
-    case "destination":
-      return <Destination destination={item} />
-    case "leg":
-      return <Leg leg={item} />
-    default:
-      return null
+type Journey = ManifestFlight | ManifestLeg
+
+const JourneyRail = ({ journeys }: { journeys: Journey[] }) => (
+  <div className="flex flex-col">
+    {journeys.map((journey, index) =>
+      journey.type === "flight" ? (
+        <FlightRow key={index} flight={journey} />
+      ) : (
+        <LegRow key={index} leg={journey} />
+      )
+    )}
+  </div>
+)
+
+// Consecutive flights and legs are one continuous journey between two places,
+// so they are drawn as a single rail rather than as separate items.
+type PlanBlock =
+  | { kind: "destination"; destination: ManifestDestination }
+  | { kind: "journeys"; journeys: Journey[] }
+
+// You are at a place until the day you leave it, so where you are now is the
+// first destination whose departure date has not passed. The last destination
+// has no departure date, which makes it the fallback once the trip is over.
+const findCurrentDestination = (items: ManifestItem[]) =>
+  items
+    .filter((item): item is ManifestDestination => item.type === "destination")
+    .find(
+      (destination) =>
+        !destination.depart ||
+        differenceInCalendarDays(destination.depart, new Date()) >= 0
+    )
+
+const toPlanBlocks = (items: ManifestItem[]) => {
+  const blocks: PlanBlock[] = []
+
+  for (const item of items) {
+    if (item.type === "destination") {
+      blocks.push({ kind: "destination", destination: item })
+      continue
+    }
+
+    const previous = blocks.at(-1)
+    if (previous?.kind === "journeys") {
+      previous.journeys.push(item)
+    } else {
+      blocks.push({ kind: "journeys", journeys: [item] })
+    }
   }
+
+  return blocks
 }
 
 const TravelPlan = () => {
@@ -841,22 +928,26 @@ const TravelPlan = () => {
     )
   if (isError)
     return (
-      <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-50">
-        <AlertCircleIcon />
-        <AlertTitle>Failed to load travel plan</AlertTitle>
-        <AlertDescription>
-          This may be a temporary error, please try again in a few moments.
-        </AlertDescription>
-      </Alert>
+      <LoadFailedAlert title="Failed to load travel plan">
+        This may be a temporary error, please try again in a few moments.
+      </LoadFailedAlert>
     )
 
-  // A plain column rather than ItemGroup: the plan mixes items, cards and date
-  // markers, so it is neither a list nor subject to ItemGroup's data-size rules.
+  const currentDestination = findCurrentDestination(data ?? [])
+
   return (
     <div className="flex w-full flex-col gap-4">
-      {data?.map((item, index) => (
-        <PlanItem key={index} item={item} />
-      ))}
+      {toPlanBlocks(data ?? []).map((block, index) =>
+        block.kind === "destination" ? (
+          <Destination
+            key={index}
+            destination={block.destination}
+            isCurrent={block.destination === currentDestination}
+          />
+        ) : (
+          <JourneyRail key={index} journeys={block.journeys} />
+        )
+      )}
     </div>
   )
 }
